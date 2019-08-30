@@ -1,0 +1,15 @@
+settings {
+toc = "true"
+creation-date = "22:10:58 27.10.1998"
+page-size = "21x19cm"
+}
+
+include {
+file = "title.cfg"
+}
+
+body {
+= Header 1
+
+Сегодня $DD.$MM.$YYYY $hh:$mm:$ss $var. Нужно больше текста.
+}
