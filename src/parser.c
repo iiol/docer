@@ -86,7 +86,6 @@ getvarname(FILE *fp)
 	wchar_t wc, *word;
 
 
-	// TODO: set seek an reset it in break
 	wordlen = 10;
 	word = xmalloc(wordlen * sizeof (wchar_t));
 
@@ -112,20 +111,26 @@ static wchar_t*
 getvarval(FILE *fp)
 {
 	int i, strlen;
+	long oldoffset;
 	wchar_t wc, *str;
 
 
-	// TODO: set seek an reset it in break
+	if ((wc = fgetwc(fp)) != '"')
+		return NULL;
+
 	strlen = 10;
 	str = xmalloc(strlen * sizeof (wchar_t));
+	oldoffset = ftell(fp);
 
 	for (i = 0; (wc = fgetwc(fp)) != WEOF; ++i) {
 		if (wc == '\\') {
 			wc = fgetwc(fp);
 
 			if (wc == WEOF) {
+				fseek(fp, oldoffset, SEEK_SET);
 				printf("error: expected '\"' at end of input\n");
 				free(str);
+
 				return NULL;
 			}
 		}
@@ -170,7 +175,7 @@ getboxtype(FILE *fp)
 			else if (cap[j][0] == '\0') {
 				if (capavailable == 0) {
 					fseek(fp, offset, SEEK_SET);
-					return END;
+					return UNKNOWN;
 				}
 				break;
 			}
@@ -190,7 +195,7 @@ getboxtype(FILE *fp)
 		}
 	}
 
-	return END;
+	return UNKNOWN;
 }
 
 static token*
@@ -263,8 +268,9 @@ parse_vars(FILE *fp)
 				skipspaces(fp);
 
 				offset = ftell(fp);
+				wc = fgetwc(fp);
 
-				if ((wc = fgetwc(fp)) != '=') {
+				if (wc != '=') {
 					printf("error: expected '='\n");
 					skipline(fp);
 					ungetwc('\n', fp);
@@ -277,7 +283,10 @@ parse_vars(FILE *fp)
 				skipspaces(fp);
 				offset = ftell(fp);
 
-				if ((wc = fgetwc(fp)) != '"') {
+				wc = fgetwc(fp);
+				ungetwc(wc, fp);
+
+				if (wc != '"') {
 					printf("error: expected '\"'");
 					skipline(fp);
 					ungetwc('\n', fp);
@@ -285,6 +294,12 @@ parse_vars(FILE *fp)
 				}
 
 				wcs = getvarval(fp);
+				if (wcs == NULL)
+					// TODO:
+					// error
+					// skipline ?
+					;
+
 				tok = tok_alloc();
 				tok->type = VARVALUE;
 				tok->value = wcs;
@@ -346,12 +361,14 @@ parse_init(FILE *fp)
 	enum tok_types toktype;
 
 
+	tokhead = toktail = NULL;
+
 	while (1) {
 		skipspaces(fp);
 		offset = ftell(fp);
 		toktype = getboxtype(fp);
 
-		if (toktype == END) {
+		if (toktype == UNKNOWN) {
 			offset = ftell(fp);
 			wc = fgetwc(fp);
 

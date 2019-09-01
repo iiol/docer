@@ -28,11 +28,19 @@ extern wchar_t *tok_types_wcs[];
 extern char *tok_types_str[];
 
 enum tok_types {
+	UNKNOWN  = 0x0,
 	END      = 0x0,
+	//
 	// 0x01 - 0xFF: one char tokens
+	//
+	// box types:
 	SETTINGS = 0x100,
 	INCLUDE,
 	BODY,
+	//
+	// other tokens (tokens in boxes):
+	TEXT,
+	VARIABLE,
 	VARNAME,
 	VARVALUE,
 };
