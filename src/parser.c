@@ -26,6 +26,37 @@ token *tokhead;
 token *toktail;
 
 
+position
+offsttopos(FILE *fp, long offst)
+{
+	long i, oldoffst;
+	int c, l;
+	wchar_t wc;
+	position pos = {.ch = 0, .line = 0};
+
+
+	oldoffst = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+
+	for (i = 0, c = l = 1; i != offst; ++i, ++c) {
+		wc = fgetwc(fp);
+
+		if (wc == '\n') {
+			c = 0;
+			++l;
+		}
+		else if (wc == WEOF)
+			return pos;
+	}
+
+	fseek(fp, oldoffst, SEEK_SET);
+
+	pos.ch = c;
+	pos.line = l;
+
+	return pos;
+}
+
 static void
 skipspaces(FILE *fp)
 {
@@ -43,11 +74,12 @@ skipline(FILE *fp)
 {
 	wchar_t wc;
 
+
 	while ((wc = fgetwc(fp)) != WEOF && wc != '\n')
 		;
 }
 
-wchar_t*
+static wchar_t*
 getvarname(FILE *fp)
 {
 	int i, wordlen;
@@ -55,8 +87,6 @@ getvarname(FILE *fp)
 
 
 	// TODO: set seek an reset it in break
-	skipspaces(fp);
-
 	wordlen = 10;
 	word = xmalloc(wordlen * sizeof (wchar_t));
 
@@ -64,7 +94,7 @@ getvarname(FILE *fp)
 		if (!iswalpha(wc) && wc != '-' && wc != '_')
 			break;
 
-		if (wordlen <= i - 1) {
+		if (wordlen <= i + 1) {
 			wordlen *= 2;
 			word = xrealloc(word, wordlen * sizeof (wchar_t));
 		}
@@ -78,8 +108,8 @@ getvarname(FILE *fp)
 	return word;
 }
 
-wchar_t*
-getstring(FILE *fp)
+static wchar_t*
+getvarval(FILE *fp)
 {
 	int i, strlen;
 	wchar_t wc, *str;
@@ -102,7 +132,7 @@ getstring(FILE *fp)
 		else if (wc == '"')
 			break;
 
-		if (strlen <= i - 1) {
+		if (strlen <= i + 1) {
 			strlen *= 2;
 			str = xrealloc(str, strlen * sizeof (wchar_t));
 		}
@@ -116,11 +146,11 @@ getstring(FILE *fp)
 	return str;
 }
 
-enum tok_types
+static enum tok_types
 getboxtype(FILE *fp)
 {
 	int i, j, capavailable;
-	long pos;
+	long offset;
 	wchar_t wc, **cap;
 	wchar_t *types[] = {
 		tok_idtowcs(SETTINGS),
@@ -130,18 +160,16 @@ getboxtype(FILE *fp)
 	};
 
 
-	pos = ftell(fp);
-	skipspaces(fp);
 	cap = types;
+	offset = ftell(fp);
 
-	// add capavailable
 	for (i = 0; (wc = fgetwc(fp)) != WEOF; ++i) {
 		for (capavailable = j = 0;; ++j) {
 			if (cap[j] == NULL)
 				continue;
 			else if (cap[j][0] == '\0') {
 				if (capavailable == 0) {
-					fseek(fp, pos, SEEK_SET);
+					fseek(fp, offset, SEEK_SET);
 					return END;
 				}
 				break;
@@ -165,7 +193,7 @@ getboxtype(FILE *fp)
 	return END;
 }
 
-token*
+static token*
 tok_alloc()
 {
 	token *tok;
@@ -186,7 +214,7 @@ tok_alloc()
 	return tok;
 }
 
-void
+static void
 tok_free_rec(token *tok)
 {
 	if (tok == NULL)
@@ -199,7 +227,9 @@ tok_free_rec(token *tok)
 void
 tok_free(token *tok)
 {
-	if (tok == tokhead)
+	if (tok == NULL)
+		return;
+	else if (tok == tokhead)
 		tokhead = toktail = NULL;
 	else {
 		toktail = tok->prev;
@@ -209,33 +239,30 @@ tok_free(token *tok)
 	tok_free_rec(tok);
 }
 
-void
-parse_settings(FILE *fp)
+static void
+parse_vars(FILE *fp)
 {
-	wchar_t wc, *var, *val;
+	wchar_t wc, *wcs;
+	long offset;
 	token *tok;
 
 
 	while ((wc = fgetwc(fp)) != WEOF) {
-		tok = tok_alloc();
-
 		if (wc == '\n') {
 			wc = fgetwc(fp);
 
-			if (wc == '}') {
-				wc = fgetwc(fp);
-
-				if (wc == '\n') {
-					tok->type = '\n';
-					return;
-				}
-				else
-					fseek(fp, -2*sizeof (wchar_t), SEEK_CUR);
-			}
-			else if (iswalpha(wc)) {
+			if (iswalpha(wc)) {
 				ungetwc(wc, fp);
-				var = getvarname(fp);
+				offset = ftell(fp);
+				wcs = getvarname(fp);
+
+				tok = tok_alloc();
+				tok->type = VARNAME;
+				tok->value = wcs;
+				tok->offset = offset;
 				skipspaces(fp);
+
+				offset = ftell(fp);
 
 				if ((wc = fgetwc(fp)) != '=') {
 					printf("error: expected '='\n");
@@ -244,7 +271,11 @@ parse_settings(FILE *fp)
 					continue;
 				}
 
+				tok = tok_alloc();
+				tok->type = '=';
+				tok->offset = offset;
 				skipspaces(fp);
+				offset = ftell(fp);
 
 				if ((wc = fgetwc(fp)) != '"') {
 					printf("error: expected '\"'");
@@ -253,7 +284,24 @@ parse_settings(FILE *fp)
 					continue;
 				}
 
-				val = getstring(fp);
+				wcs = getvarval(fp);
+				tok = tok_alloc();
+				tok->type = VARVALUE;
+				tok->value = wcs;
+				tok->offset = offset;
+			}
+			else if (wc == '}') {
+				offset = ftell(fp);
+				wc = fgetwc(fp);
+
+				if (wc == '\n') {
+					tok = tok_alloc();
+					tok->type = '}';
+					tok->offset = offset;
+					return;
+				}
+				else
+					fseek(fp, -2*sizeof (wchar_t), SEEK_CUR);
 			}
 			else if (iswspace(wc))
 				ungetwc(wc, fp);
@@ -270,41 +318,52 @@ parse_settings(FILE *fp)
 	}
 }
 
-void
-parse_include(FILE *fp)
-{
-}
-
-void
+static void
 parse_body(FILE *fp)
 {
+	wchar_t wc;
+
+
+	// TODO: finish writing function
+	while (1) {
+		wc = fgetwc(fp);
+
+		if (wc == '}') {
+
+			break;
+		}
+		else if (wc == WEOF)
+			break;
+	}
 }
 
 token*
 parse_init(FILE *fp)
 {
 	wchar_t wc;
+	long offset;
 	token *tok;
 	enum tok_types toktype;
 
 
 	while (1) {
-		tok = tok_alloc();
+		skipspaces(fp);
+		offset = ftell(fp);
 		toktype = getboxtype(fp);
 
 		if (toktype == END) {
+			offset = ftell(fp);
 			wc = fgetwc(fp);
 
 			if (wc == '{') {
+				tok = tok_alloc();
 				tok->type = '{';
+				tok->offset = offset;
 
 				switch (tok->prev->type) {
 				case SETTINGS:
-					parse_settings(fp);
-					break;
-
 				case INCLUDE:
-					parse_include(fp);
+					parse_vars(fp);
 					break;
 
 				case BODY:
@@ -319,12 +378,15 @@ parse_init(FILE *fp)
 			else if (wc == WEOF)
 				break;
 			else
-				printf("error: unknown token\n");
+				ungetwc(wc, fp);
 		}
 		else if (toktype == SETTINGS ||
 			 toktype == INCLUDE  ||
-			 toktype == BODY)
+			 toktype == BODY) {
+			tok = tok_alloc();
 			tok->type = toktype;
+			tok->offset = offset;
+		}
 		else {
 			printf("error: unknown token\n");
 			tok_free(tok);

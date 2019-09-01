@@ -33,24 +33,31 @@ enum tok_types {
 	SETTINGS = 0x100,
 	INCLUDE,
 	BODY,
+	VARNAME,
+	VARVALUE,
 };
 
 typedef struct variable {
-	char *name;
-	char *val;
+	wchar_t *name;
+	wchar_t *val;
 } variable;
 
 typedef struct token {
 	enum tok_types type;
-	union {
-		char *val;
-		variable **vars;
-	};
+	wchar_t *value;
+	long offset;
 
 	struct token *prev;
 	struct token *next;
 } token;
 
+typedef struct position {
+	int ch;
+	int line;
+} position;
+
+position offsttopos(FILE *fp, long offst);
 token* parse_init(FILE *fp);
+void tok_free(token *tok);
 
 #endif
