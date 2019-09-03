@@ -78,22 +78,15 @@ whitespace_cb(mxml_node_t *node, int where)
 
 	switch (where) {
 	case MXML_WS_BEFORE_OPEN:
+	case MXML_WS_BEFORE_CLOSE:
 		if (!strncmp(element, "?xml", strlen("?xml")))
 			return "";
-		else if (!strncmp(element, "manifest:file-entry", strlen("manifest:file-entry")))
-			return "\n\t";
 		else
 			return "\n";
 
 		break;
 
 	case MXML_WS_AFTER_OPEN:
-		break;
-
-	case MXML_WS_BEFORE_CLOSE:
-		return "\n";
-		break;
-
 	case MXML_WS_AFTER_CLOSE:
 		break;
 	}
@@ -134,7 +127,9 @@ create_styles(struct odt_doc *doc)
 	int fd;
 	mxml_node_t *xml;
 
-	fd = open("./src/templates/styles.xml", O_RDONLY);
+
+	// TODO: change xml initialization method
+	fd = open("./templates/styles.xml", O_RDONLY);
 	xml = mxmlLoadFd(NULL, fd, MXML_NO_CALLBACK);
 	close(fd);
 
@@ -147,14 +142,14 @@ create_styles(struct odt_doc *doc)
 static int
 create_content(struct odt_doc *doc)
 {
-	FILE *fp;
 	int fd;
 	mxml_node_t *xml;
 
 
-	fp = fopen("./src/templates/content.xml", "r");
-	xml = mxmlLoadFile(NULL, fp, MXML_NO_CALLBACK);
-	fclose(fp);
+	// TODO: change xml initialization method
+	fd = open("./templates/content.xml", O_RDONLY);
+	xml = mxmlLoadFd(NULL, fd, MXML_NO_CALLBACK);
+	close(fd);
 
 	fd = open("/tmp", O_RDWR | O_TMPFILE, 0644);
 	mxmlSaveFd(xml, fd, whitespace_cb);

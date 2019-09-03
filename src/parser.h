@@ -59,12 +59,6 @@ typedef struct token {
 	struct token *next;
 } token;
 
-typedef struct position {
-	int ch;
-	int line;
-} position;
-
-position offsttopos(FILE *fp, long offst);
 token* parse_init(FILE *fp);
 void tok_free(token *tok);
 
