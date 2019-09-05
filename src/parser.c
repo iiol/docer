@@ -8,7 +8,18 @@
 #include "stream.h"
 #include "macro.h"
 
-// TODO: replace fgetwc(), stream_getofst(), skipline(), skipspaces() functions
+
+#define tok_add(TYPE, VAL, OFST)	\
+({					\
+	token *tok = tok_alloc();	\
+					\
+	tok->type = TYPE;		\
+	tok->value = VAL;		\
+	tok->offset = OFST;		\
+					\
+	tok;				\
+})
+
 
 wchar_t *tok_types_wcs[] = {
 	L"settings",
@@ -289,13 +300,18 @@ parse_vars(FILE *fp)
 static void
 parse_body(FILE *fp)
 {
+	unsigned int i;
 	wchar_t wc;
 	long offset;
-	token *tok;
+	wchar_t *text;
+	unsigned int textlen;
 
 
-	// TODO: finish writing function
-	while (1) {
+	textlen = 1024;
+	text = xmalloc(textlen * sizeof (wchar_t));
+
+	for (i = 0;;) {
+		offset = stream_getofst();
 		wc = stream_getwc();
 
 		if (wc == '\n') {
@@ -306,11 +322,17 @@ parse_body(FILE *fp)
 				wc = stream_getwc();
 
 				if (wc == '\n' || wc == WEOF) {
-					tok = tok_alloc();
-					tok->type = '}';
-					tok->offset = offset;
+					if (i != 0) {
+						text[i++] = '\0';
+						text = xrealloc(text, i * sizeof (wchar_t));
+						tok_add(TEXT, text, offset);
 
-					return;
+						i = 0;
+						textlen = 1024;
+						text = xmalloc(textlen * sizeof (wchar_t));
+					}
+
+					tok_add('}', NULL, offset);
 				}
 				else
 					stream_wcback(2);
@@ -318,11 +340,25 @@ parse_body(FILE *fp)
 			else
 				stream_wcback(1);
 		}
-		else if (wc == WEOF)
-			break;
-		else
-			// get text
-			;
+		else if (wc == WEOF) {
+			if (i != 0) {
+				text[i++] = '\0';
+				text = xrealloc(text, i * sizeof (wchar_t));
+				tok_add(TEXT, text, offset);
+			}
+			else
+				free(text);
+
+			return;
+		}
+		else {
+			if (textlen <= i + 1) {
+				textlen *= 2;
+				text = xrealloc(text, textlen * sizeof (wchar_t));
+			}
+
+			text[i++] = wc;
+		}
 	}
 }
 

@@ -9,7 +9,5 @@ file = "title.cfg"
 }
 
 body {
-= Header 1
-
-Сегодня $DD.$MM.$YYYY $hh:$mm:$ss $var. Нужно больше текста.
+Hello World!
 }

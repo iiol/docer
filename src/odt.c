@@ -50,6 +50,8 @@ struct odt_styles {
 
 struct odt_content {
 	int fd;
+
+	wchar_t *body;
 };
 
 struct odt_doc {
@@ -67,6 +69,12 @@ static const struct odt_version version = {
 	.version_min = 2,
 };
 
+
+void
+odt_set_text(odt_doc *doc, wchar_t *text)
+{
+	doc->content->body = text;
+}
 
 static const char*
 whitespace_cb(mxml_node_t *node, int where)
@@ -103,6 +111,7 @@ odt_new(void)
 	doc = xmalloc(sizeof (struct odt_doc));
 	doc->meta = xmalloc(sizeof (struct odt_meta));
 	doc->styles = xmalloc(sizeof (struct odt_styles));
+	doc->content = xmalloc(sizeof (struct odt_content));
 
 	doc->mimetype = MIMETYPE;
 
@@ -143,13 +152,23 @@ static int
 create_content(struct odt_doc *doc)
 {
 	int fd;
-	mxml_node_t *xml;
+	size_t size;
+	char *str;
+	mxml_node_t *xml, *node;
 
 
 	// TODO: change xml initialization method
 	fd = open("./templates/content.xml", O_RDONLY);
 	xml = mxmlLoadFd(NULL, fd, MXML_NO_CALLBACK);
+	node = mxmlFindPath(xml, "office:document-content/office:body/office:text/text:p");
 	close(fd);
+
+	size = (wcslen(doc->content->body) + 1) * MB_CUR_MAX;
+	str = xmalloc(size);
+	size = wcstombs(str, doc->content->body, size);
+	str = xrealloc(str, size + 1);
+
+	mxmlNewText(node, 0, str);
 
 	fd = open("/tmp", O_RDWR | O_TMPFILE, 0644);
 	mxmlSaveFd(xml, fd, whitespace_cb);

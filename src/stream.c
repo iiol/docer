@@ -23,7 +23,7 @@ stream_wcback(int n)
 wchar_t
 stream_getwc()
 {
-	if (offset <= wcstringlen)
+	if (offset < wcstringlen)
 		return wcstring[offset++];
 	else
 		return WEOF;
