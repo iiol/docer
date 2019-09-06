@@ -212,7 +212,6 @@ parse_vars(FILE *fp)
 {
 	wchar_t wc, *wcs;
 	long offset;
-	token *tok;
 
 
 	while ((wc = stream_getwc()) != WEOF) {
@@ -224,10 +223,7 @@ parse_vars(FILE *fp)
 				stream_wcback(1);
 				wcs = getvarname(fp);
 
-				tok = tok_alloc();
-				tok->type = VARNAME;
-				tok->value = wcs;
-				tok->offset = offset;
+				tok_add(VARNAME, wcs, offset);
 				stream_skipsp();
 
 				offset = stream_getofst();
@@ -240,9 +236,7 @@ parse_vars(FILE *fp)
 					continue;
 				}
 
-				tok = tok_alloc();
-				tok->type = '=';
-				tok->offset = offset;
+				tok_add('=', NULL, offset);
 				stream_skipsp();
 
 				offset = stream_getofst();
@@ -264,18 +258,14 @@ parse_vars(FILE *fp)
 					// skipline ?
 					;
 
-				tok = tok_alloc();
-				tok->type = VARVALUE;
-				tok->value = wcs;
-				tok->offset = offset;
+				tok_add(VARNAME, wcs, offset);
 			}
 			else if (wc == '}') {
 				wc = stream_getwc();
 
 				if (wc == '\n') {
-					tok = tok_alloc();
-					tok->type = '}';
-					tok->offset = offset;
+					tok_add('}', NULL, offset);
+
 					return;
 				}
 				else {
@@ -381,19 +371,14 @@ parse_init(FILE *fp)
 
 		if (toktype == SETTINGS ||
 			 toktype == INCLUDE  ||
-			 toktype == BODY) {
-			tok = tok_alloc();
-			tok->type = toktype;
-			tok->offset = offset;
-		}
+			 toktype == BODY)
+			tok_add(toktype, NULL, offset);
 		else {	// if toktype == UNKNOWN
 			offset = stream_getofst();
 			wc = stream_getwc();
 
 			if (wc == '{') {
-				tok = tok_alloc();
-				tok->type = '{';
-				tok->offset = offset;
+				tok = tok_add('{', NULL, offset);
 
 				switch (tok->prev->type) {
 				case SETTINGS:
