@@ -37,7 +37,8 @@ struct content_list {
 		// image object;
 		// table object;
 	};
-	struct content_list *next;
+
+	struct list_node _list;
 };
 
 struct odt_manifest {
@@ -86,38 +87,19 @@ static const struct odt_version version = {
 };
 
 
-// TODO: write common list macros
-static struct content_list*
-get_last_entry(struct content_list *list)
-{
-	if (list == NULL)
-		return NULL;
-
-	for (; list->next != NULL; list = list->next)
-		;
-
-	return list;
-}
-
 void
 odt_set_text(odt_doc *doc, wchar_t *text)
 {
 	struct content_list *entry;
 
 
-	entry = get_last_entry(doc->content->list);
-	if (entry == NULL) {
-		entry = xmalloc(sizeof (struct content_list));
-		doc->content->list = entry;
-	}
-	else {
-		entry->next = xmalloc(sizeof (struct content_list));
-		entry = entry->next;
-	}
+	if (doc->content->list == NULL)
+		entry = list_init(doc->content->list);
+	else
+		entry = list_alloc_at_end(doc->content->list);
 
 	entry->type = TEXT;
 	entry->text = text;
-	entry->next = NULL;
 }
 
 static const char*
@@ -218,7 +200,7 @@ create_content(struct odt_doc *doc)
 	node = mxmlFindPath(xml, "office:document-content/office:body/office:text/text:p");
 	close(fd);
 
-	for (list = doc->content->list; list != NULL; list = list->next) {
+	list_foreach (doc->content->list, list) {
 		if (list->type != TEXT)
 			continue;
 

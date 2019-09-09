@@ -9,17 +9,24 @@
 #include "macro.h"
 
 
-#define tok_add(TYPE, VAL, OFST)	\
-({					\
-	token *tok = tok_alloc();	\
-					\
-	tok->type = TYPE;		\
-	tok->value = VAL;		\
-	tok->offset = OFST;		\
-					\
-	tok;				\
+#define tok_add(TYPE, VAL, OFST)			\
+({							\
+	token *tok;					\
+							\
+	if (tokhead == NULL) {				\
+		list_init(tok);				\
+ 		tokhead = tok;				\
+	}						\
+	else						\
+		tok = list_alloc_at_end(tokhead);	\
+							\
+	tok->type = TYPE;				\
+	tok->value = VAL;				\
+	tok->offset = OFST;				\
+	tok;						\
 })
 
+token *tokhead;
 
 wchar_t *tok_types_wcs[] = {
 	L"settings",
@@ -34,9 +41,6 @@ char *tok_types_str[] = {
 	"body",
 	NULL,
 };
-
-token *tokhead;
-token *toktail;
 
 
 static wchar_t*
@@ -144,7 +148,6 @@ getboxtype(FILE *fp)
 			}
 
 			++capavailable;
-
 			if (cap[j][i] == '\0') {
 				if (iswalpha(wc))
 					cap[j] = NULL;
@@ -159,52 +162,6 @@ getboxtype(FILE *fp)
 	}
 
 	return UNKNOWN;
-}
-
-static token*
-tok_alloc()
-{
-	token *tok;
-
-
-	tok = xmalloc(sizeof (token));
-	memset(tok, 0, sizeof (token));
-
-	if (toktail != NULL)
-		toktail->next = tok;
-
-	if (tokhead == NULL)
-		tokhead = tok;
-
-	tok->prev = toktail;
-	toktail = tok;
-
-	return tok;
-}
-
-static void
-tok_free_rec(token *tok)
-{
-	if (tok == NULL)
-		return;
-
-	tok_free_rec(tok->next);
-	free(tok);
-}
-
-void
-tok_free(token *tok)
-{
-	if (tok == NULL)
-		return;
-	else if (tok == tokhead)
-		tokhead = toktail = NULL;
-	else {
-		toktail = tok->prev;
-		tok->prev->next = NULL;
-	}
-
-	tok_free_rec(tok);
 }
 
 static void
@@ -362,7 +319,6 @@ parse_init(FILE *fp)
 
 
 	stream_init(fp);
-	tokhead = toktail = NULL;
 
 	while (1) {
 		stream_skipsp();
@@ -380,7 +336,7 @@ parse_init(FILE *fp)
 			if (wc == '{') {
 				tok = tok_add('{', NULL, offset);
 
-				switch (tok->prev->type) {
+				switch (list_get_prev(tok)->type) {
 				case SETTINGS:
 				case INCLUDE:
 					parse_vars(fp);
@@ -393,7 +349,7 @@ parse_init(FILE *fp)
 				default:
 					// error
 					// skip to "\n}\n"
-					tok_free(tok);
+					list_delete(tok);
 
 					break;
 				}

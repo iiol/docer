@@ -1,6 +1,8 @@
 #ifndef _PARSER_H
 #define _PARSER_H
 
+#include "macro.h"
+
 #define tok_idtowcs(id) tok_types_wcs[id - 0x100]
 #define tok_idtostr(id) tok_types_str[id - 0x100]
 
@@ -55,8 +57,7 @@ typedef struct token {
 	wchar_t *value;
 	long offset;
 
-	struct token *prev;
-	struct token *next;
+	struct list_node _list;
 } token;
 
 token* parse_init(FILE *fp);

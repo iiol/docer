@@ -19,11 +19,14 @@ main(void)
 
 	setlocale(LC_ALL, "");
 	fp = fopen("test.txt", "r");
-	head = toks = parse_init(fp);
+	head = parse_init(fp);
 
 #if 1	// DEBUG: print tokens
+	i = 0;
 	printf("Tokens:\n");
-	for (i = 1; toks != NULL; ++i, toks = toks->next) {
+	list_foreach (head, toks) {
+		++i;
+
 		if (toks->type == SETTINGS ||
 		    toks->type == INCLUDE  ||
 		    toks->type == BODY) {
@@ -44,14 +47,13 @@ main(void)
 			printf("%3d) at: %2d:%-2d  %c\n", i, pos.line, pos.ch, toks->type);
 		}
 	}
-	toks = head;
 #endif
 
 	doc = odt_new();
 
-	for (; toks != NULL; toks = toks->next) {
+	list_foreach (head, toks) {
 		if (toks->type == BODY) {
-			for (; toks != NULL; toks = toks->next) {
+			for (; toks != NULL; toks = list_get_next(toks)) {
 				if (toks->type == '}')
 					break;
 				else if (toks->type == TEXT)
@@ -72,7 +74,7 @@ main(void)
 	if (odt_write(doc, "file.odt") == -1)
 		printf("error: %s\n", odt_strerror(doc));
 
-	tok_free(head);
+	// list_free(head);
 
 	return 0;
 }
