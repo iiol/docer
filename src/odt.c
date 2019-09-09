@@ -19,9 +19,25 @@
 #define MIMETYPE "application/vnd.oasis.opendocument.text"
 
 
+enum content_type {
+	TEXT,
+	IMAGE,
+	TABLE,
+};
+
 struct odt_version {
 	int version_maj;
 	int version_min;
+};
+
+struct content_list {
+	enum content_type type;
+	union {
+		wchar_t *text;
+		// image object;
+		// table object;
+	};
+	struct content_list *next;
 };
 
 struct odt_manifest {
@@ -51,7 +67,7 @@ struct odt_styles {
 struct odt_content {
 	int fd;
 
-	wchar_t *body;
+	struct content_list *list;
 };
 
 struct odt_doc {
@@ -70,10 +86,38 @@ static const struct odt_version version = {
 };
 
 
+// TODO: write common list macros
+static struct content_list*
+get_last_entry(struct content_list *list)
+{
+	if (list == NULL)
+		return NULL;
+
+	for (; list->next != NULL; list = list->next)
+		;
+
+	return list;
+}
+
 void
 odt_set_text(odt_doc *doc, wchar_t *text)
 {
-	doc->content->body = text;
+	struct content_list *entry;
+
+
+	entry = get_last_entry(doc->content->list);
+	if (entry == NULL) {
+		entry = xmalloc(sizeof (struct content_list));
+		doc->content->list = entry;
+	}
+	else {
+		entry->next = xmalloc(sizeof (struct content_list));
+		entry = entry->next;
+	}
+
+	entry->type = TEXT;
+	entry->text = text;
+	entry->next = NULL;
 }
 
 static const char*
@@ -105,13 +149,23 @@ whitespace_cb(mxml_node_t *node, int where)
 struct odt_doc*
 odt_new(void)
 {
+	int size;
 	struct odt_doc *doc;
 
 
 	doc = xmalloc(sizeof (struct odt_doc));
-	doc->meta = xmalloc(sizeof (struct odt_meta));
-	doc->styles = xmalloc(sizeof (struct odt_styles));
-	doc->content = xmalloc(sizeof (struct odt_content));
+
+	size = sizeof (struct odt_meta);
+	doc->meta = xmalloc(size);
+	memset(doc->meta, 0, size);
+
+	size = sizeof (struct odt_styles);
+	doc->styles = xmalloc(size);
+	memset(doc->styles, 0, size);
+
+	size = sizeof (struct odt_content);
+	doc->content = xmalloc(size);
+	memset(doc->content, 0, size);
 
 	doc->mimetype = MIMETYPE;
 
@@ -155,6 +209,7 @@ create_content(struct odt_doc *doc)
 	size_t size;
 	char *str;
 	mxml_node_t *xml, *node;
+	struct content_list *list;
 
 
 	// TODO: change xml initialization method
@@ -163,12 +218,17 @@ create_content(struct odt_doc *doc)
 	node = mxmlFindPath(xml, "office:document-content/office:body/office:text/text:p");
 	close(fd);
 
-	size = (wcslen(doc->content->body) + 1) * MB_CUR_MAX;
-	str = xmalloc(size);
-	size = wcstombs(str, doc->content->body, size);
-	str = xrealloc(str, size + 1);
+	for (list = doc->content->list; list != NULL; list = list->next) {
+		if (list->type != TEXT)
+			continue;
 
-	mxmlNewText(node, 0, str);
+		size = (wcslen(list->text) + 1) * MB_CUR_MAX;
+		str = xmalloc(size);
+		size = wcstombs(str, list->text, size);
+		str = xrealloc(str, size + 1);
+
+		mxmlNewText(node, 0, str);
+	}
 
 	fd = open("/tmp", O_RDWR | O_TMPFILE, 0644);
 	mxmlSaveFd(xml, fd, whitespace_cb);
