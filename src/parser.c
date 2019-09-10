@@ -250,7 +250,7 @@ parse_body(FILE *fp)
 	unsigned int i;
 	wchar_t wc;
 	long offset;
-	wchar_t *text;
+	wchar_t *text, *varname;
 	unsigned int textlen;
 
 
@@ -261,37 +261,60 @@ parse_body(FILE *fp)
 		offset = stream_getofst();
 		wc = stream_getwc();
 
-		if (wc == '\n') {
-			offset = stream_getofst();
+		if (wc == '\\') {
 			wc = stream_getwc();
 
-			if (wc == '}') {
-				wc = stream_getwc();
+			if (wc == WEOF)
+				// error
+				;
 
-				if (wc == '\n' || wc == WEOF) {
-					if (i != 0) {
-						text[i++] = '\0';
-						text = xrealloc(text, i * sizeof (wchar_t));
-						tok_add(TEXT, text, offset);
+			if (textlen <= i + 1) {
+				textlen *= 2;
+				text = xrealloc(text, textlen * sizeof (wchar_t));
+			}
 
-						i = 0;
-						textlen = 1024;
-						text = xmalloc(textlen * sizeof (wchar_t));
-					}
+			text[i++] = wc;
+		}
+		else if (wc == '}' && stream_getprevwc() == '\n') {
+			offset = stream_getofst() - 1;
+			wc = stream_getwc();
 
-					tok_add('}', NULL, offset);
+			if (wc == '\n' || wc == WEOF) {
+				if (i != 0) {
+					i -= 1;
+					text[i++] = '\0';
+					text = xrealloc(text, i * sizeof (wchar_t));
+					tok_add(TEXT, text, offset - wcslen(text));
+
+					i = 0;
+					textlen = 1024;
+					text = xmalloc(textlen * sizeof (wchar_t));
 				}
-				else
-					stream_wcback(2);
+
+				tok_add('}', NULL, offset);
 			}
 			else
-				stream_wcback(1);
+				stream_wcback(2);
+		}
+		else if (wc == '$') {
+			if (i != 0) {
+				text[i++] = '\0';
+				text = xrealloc(text, i * sizeof (wchar_t));
+				tok_add(TEXT, text, offset - wcslen(text));
+
+				i = 0;
+				textlen = 1024;
+				text = xmalloc(textlen * sizeof (wchar_t));
+			}
+
+			varname = getvarname(fp);
+			tok_add(VARIABLE, varname, offset);
 		}
 		else if (wc == WEOF) {
 			if (i != 0) {
 				text[i++] = '\0';
 				text = xrealloc(text, i * sizeof (wchar_t));
-				tok_add(TEXT, text, offset);
+				tok_add(TEXT, text, offset - wcslen(text));
 			}
 			else
 				free(text);
@@ -303,6 +326,9 @@ parse_body(FILE *fp)
 				textlen *= 2;
 				text = xrealloc(text, textlen * sizeof (wchar_t));
 			}
+
+			if (iswspace(wc))
+				wc = ' ';
 
 			text[i++] = wc;
 		}
@@ -334,6 +360,13 @@ parse_init(FILE *fp)
 			wc = stream_getwc();
 
 			if (wc == '{') {
+				wc = stream_getwc();
+				if (wc != '\n') {
+					// error
+					// skip
+					continue;
+				}
+
 				tok = tok_add('{', NULL, offset);
 
 				switch (list_get_prev(tok)->type) {

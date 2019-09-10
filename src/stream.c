@@ -21,6 +21,15 @@ stream_wcback(int n)
 }
 
 wchar_t
+stream_getprevwc()
+{
+	if (offset == 0)
+		return WEOF;
+	else
+		return wcstring[offset - 2];
+}
+
+wchar_t
 stream_getwc()
 {
 	if (offset < wcstringlen)

@@ -40,7 +40,11 @@ main(void)
 		}
 		else if (toks->type == TEXT) {
 			pos = stream_ofsttopos(toks->offset);
-			printf("%3d) at: %2d:%-2d  TEXT: %ls\n", i, pos.line, pos.ch, toks->value);
+			printf("%3d) at: %2d:%-2d  TEXT: '%ls'\n", i, pos.line, pos.ch, toks->value);
+		}
+		else if (toks->type == VARIABLE) {
+			pos = stream_ofsttopos(toks->offset);
+			printf("%3d) at: %2d:%-2d  VARIABLE: '%ls'\n", i, pos.line, pos.ch, toks->value);
 		}
 		else {
 			pos = stream_ofsttopos(toks->offset);

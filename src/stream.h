@@ -10,6 +10,7 @@ typedef struct position {
 void stream_init(FILE *fp);
 
 void stream_wcback(int n);
+wchar_t stream_getprevwc();
 wchar_t stream_getwc();
 void stream_skipsp();
 void stream_skipline();

@@ -9,5 +9,5 @@ file = "title.cfg"
 }
 
 body {
-Hello World!
+Hello World! $foo H $bar \$notvar.
 }
