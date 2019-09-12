@@ -36,9 +36,10 @@ enum tok_types {
 	// 0x01 - 0xFF: one char tokens
 	//
 	// box types:
-	SETTINGS = 0x100,
-	INCLUDE,
-	BODY,
+	SETTINGS_BOX = 0x100,
+	INCLUDE_BOX,
+	BODY_BOX,
+	VARIABLE_BOX,
 	//
 	// other tokens (tokens in boxes):
 	TEXT,

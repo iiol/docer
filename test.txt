@@ -8,6 +8,11 @@ include {
 file = "title.cfg"
 }
 
+variable {
+hello = "Hello"
+world = "world"
+}
+
 body {
-Hello World! $foo H $bar \$notvar.
+Hello World! $hello $world! \$notvar.
 }

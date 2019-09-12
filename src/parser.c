@@ -32,6 +32,7 @@ wchar_t *tok_types_wcs[] = {
 	L"settings",
 	L"include",
 	L"body",
+	L"variable",
 	NULL,
 };
 
@@ -39,6 +40,7 @@ char *tok_types_str[] = {
 	"settings",
 	"include",
 	"body",
+	"variable",
 	NULL,
 };
 
@@ -54,8 +56,10 @@ getvarname(FILE *fp)
 	word = xmalloc(wordlen * sizeof (wchar_t));
 
 	for (i = 0; (wc = stream_getwc()) != WEOF; ++i) {
-		if (!iswalpha(wc) && wc != '-' && wc != '_')
+		if (!iswalpha(wc) && wc != '-' && wc != '_') {
+			stream_wcback(1);
 			break;
+		}
 
 		if (wordlen <= i + 1) {
 			wordlen *= 2;
@@ -125,9 +129,10 @@ getboxtype(FILE *fp)
 	long oldoffset;
 	wchar_t wc, **cap;
 	wchar_t *types[] = {
-		tok_idtowcs(SETTINGS),
-		tok_idtowcs(INCLUDE),
-		tok_idtowcs(BODY),
+		tok_idtowcs(SETTINGS_BOX),
+		tok_idtowcs(INCLUDE_BOX),
+		tok_idtowcs(BODY_BOX),
+		tok_idtowcs(VARIABLE_BOX),
 		L"",
 	};
 
@@ -215,7 +220,7 @@ parse_vars(FILE *fp)
 					// skipline ?
 					;
 
-				tok_add(VARNAME, wcs, offset);
+				tok_add(VARVALUE, wcs, offset);
 			}
 			else if (wc == '}') {
 				wc = stream_getwc();
@@ -351,31 +356,35 @@ parse_init(FILE *fp)
 		offset = stream_getofst();
 		toktype = getboxtype(fp);
 
-		if (toktype == SETTINGS ||
-			 toktype == INCLUDE  ||
-			 toktype == BODY)
+		if (toktype == SETTINGS_BOX ||
+			 toktype == INCLUDE_BOX  ||
+			 toktype == BODY_BOX ||
+			 toktype == VARIABLE_BOX)
 			tok_add(toktype, NULL, offset);
 		else {	// if toktype == UNKNOWN
 			offset = stream_getofst();
 			wc = stream_getwc();
 
 			if (wc == '{') {
+#if 0	// TODO:
 				wc = stream_getwc();
 				if (wc != '\n') {
 					// error
 					// skip
 					continue;
 				}
+#endif
 
 				tok = tok_add('{', NULL, offset);
 
 				switch (list_get_prev(tok)->type) {
-				case SETTINGS:
-				case INCLUDE:
+				case SETTINGS_BOX:
+				case INCLUDE_BOX:
+				case VARIABLE_BOX:
 					parse_vars(fp);
 					break;
 
-				case BODY:
+				case BODY_BOX:
 					parse_body(fp);
 					break;
 

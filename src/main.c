@@ -5,6 +5,7 @@
 #include "odt.h"
 #include "parser.h"
 #include "stream.h"
+#include "dhat.h"
 
 
 int
@@ -15,11 +16,14 @@ main(void)
 	odt_doc *doc;
 	token *head, *toks;
 	position pos;
+	dhat *vars;
+	wchar_t *varname, *varval, *text;
 
 
 	setlocale(LC_ALL, "");
 	fp = fopen("test.txt", "r");
 	head = parse_init(fp);
+	vars = dhat_new(20, 100, 2);
 
 #if 1	// DEBUG: print tokens
 	i = 0;
@@ -27,9 +31,10 @@ main(void)
 	list_foreach (head, toks) {
 		++i;
 
-		if (toks->type == SETTINGS ||
-		    toks->type == INCLUDE  ||
-		    toks->type == BODY) {
+		if (toks->type == SETTINGS_BOX ||
+		    toks->type == INCLUDE_BOX  ||
+		    toks->type == BODY_BOX ||
+		    toks->type == VARIABLE_BOX) {
 			pos = stream_ofsttopos(toks->offset);
 			printf("%3d) at: %2d:%-2d  %s \n", i, pos.line, pos.ch, tok_idtostr(toks->type));
 		}
@@ -56,22 +61,60 @@ main(void)
 	doc = odt_new();
 
 	list_foreach (head, toks) {
-		if (toks->type == BODY) {
-			for (; toks != NULL; toks = list_get_next(toks)) {
+		if (toks->type == BODY_BOX) {
+			if ((toks = list_get_next(toks))->type != '{')
+				// TODO:
+				// error
+				printf("error\n");
+
+			list_foreach (toks, toks) {
 				if (toks->type == '}')
 					break;
 				else if (toks->type == TEXT)
 					odt_set_text(doc, toks->value);
-			}
+				else if (toks->type == VARIABLE) {
+					if (!dhat_get(vars, toks->value, (const void**)&text))
+						// TODO: error var not found
+						text = L"";
 
-			if (toks == NULL)
-				break;
+					odt_set_text(doc, text);
+				}
+				else
+					// TODO: error: unknown token
+					;
+			}
 		}
-		else if (toks->type == INCLUDE)
+		else if (toks->type == INCLUDE_BOX)
 			// TODO: write
 			;
-		else if (toks->type == SETTINGS)
+		else if (toks->type == SETTINGS_BOX)
 			// TODO: write
+			;
+		else if (toks->type == VARIABLE_BOX) {
+			if ((toks = list_get_next(toks))->type != '{')
+				// TODO:
+				// error
+				printf("error\n");
+
+			// TODO: rewrite
+			list_foreach (list_get_next(toks), toks) {
+				if (toks->type != VARNAME)
+					break;
+
+				varname = toks->value;
+
+				if ((toks = list_get_next(toks))->type != '=')
+					break;
+
+				if ((toks = list_get_next(toks))->type != VARVALUE)
+					break;
+
+				varval = toks->value;
+				dhat_put(vars, varname, varval);
+			}
+		}
+		else
+			// TODO: unknown token
 			;
 	}
 
