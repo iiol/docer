@@ -3,24 +3,25 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 #include <stddef.h>
 
 
 #define SYSCALL(estat, func, args...)					\
 ({									\
-	int ret;							\
+	int __ret;							\
 									\
 									\
-	while ((ret = ((func)(args))) == -1 && errno == EINTR)		\
+	while ((__ret = ((func)(args))) == -1 && errno == EINTR)		\
 		;							\
 									\
-	if (ret == -1) {						\
+	if (__ret == -1) {						\
 		perror(#func "(" #args ")");				\
 		exit(estat);						\
 	}								\
 									\
-	ret;								\
+	__ret;								\
 })
 
 static inline void*
@@ -56,121 +57,121 @@ xrealloc(void *ptr, size_t size)
 
 #define xassert(var)							\
 ({									\
-	typeof (var) _var = var;					\
+	typeof (var) __var = var;					\
 									\
 									\
-	if (!_var) {							\
+	if (!__var) {							\
 		fprintf(stderr, "%s:%d: %s: Assertion `%s' failed.\n",	\
 			__FILE__, __LINE__, __func__, #var);		\
 		fflush(stderr);						\
 		exit(1);						\
 	}								\
 									\
-	_var;								\
+	__var;								\
 })
 
 #define list_init(p)							\
 ({									\
-	typeof (p) _p;							\
+	typeof (p) __p;							\
 									\
 									\
-	_p = malloc(sizeof (typeof (*_p)));				\
-	memset(&_p->_list, 0, sizeof (struct list_node));		\
+	__p = malloc(sizeof (typeof (*__p)));				\
+	memset(&__p->_list, 0, sizeof (struct list_node));		\
 									\
-	_p->_list.meta = malloc(sizeof (struct list_meta));		\
-	_p->_list.meta->offset = offsetof(typeof (*_p), _list);		\
-	_p->_list.meta->head = &_p->_list;				\
-	_p->_list.meta->tail = &_p->_list;				\
-	_p->_list.prev = NULL;						\
-	_p->_list.next = NULL;						\
+	__p->_list.meta = malloc(sizeof (struct list_meta));		\
+	__p->_list.meta->offset = offsetof(typeof (*__p), _list);	\
+	__p->_list.meta->head = &__p->_list;				\
+	__p->_list.meta->tail = &__p->_list;				\
+	__p->_list.prev = NULL;						\
+	__p->_list.next = NULL;						\
 									\
-	p = _p;								\
+	p = __p;								\
 })
 
 #define list_alloc_at_end(p)						\
 ({									\
-	typeof (p) newentry, _p = xassert(p);				\
+	typeof (p) __newp, __p = xassert(p);				\
 									\
 									\
-	newentry = malloc(sizeof (typeof (*_p)));			\
-	newentry->_list.meta = _p->_list.meta;				\
-	newentry->_list.prev = _p->_list.meta->tail;			\
-	newentry->_list.next = NULL;					\
-	newentry->_list.meta->tail = &(newentry->_list);		\
-	if (newentry->_list.prev != NULL)				\
-		newentry->_list.prev->next = &(newentry->_list);	\
+	__newp = malloc(sizeof (typeof (*__p)));			\
+	__newp->_list.meta = __p->_list.meta;				\
+	__newp->_list.prev = __p->_list.meta->tail;			\
+	__newp->_list.next = NULL;					\
+	__newp->_list.meta->tail = &(__newp->_list);			\
+	if (__newp->_list.prev != NULL)					\
+		__newp->_list.prev->next = &(__newp->_list);		\
 									\
-	newentry;							\
+	__newp;								\
 })
 
 #define list_delete(p)							\
 ({									\
-	typeof (p) head = NULL, _p = xassert(p);			\
+	typeof (p) __head = NULL, __p = xassert(p);			\
 									\
 									\
-	if (_p->_list.prev == NULL)					\
-		_p->_list.meta->head = _p->_list.next;			\
+	if (__p->_list.prev == NULL)					\
+		__p->_list.meta->head = __p->_list.next;		\
 	else								\
-		_p->_list.prev->next = _p->_list.next;			\
+		__p->_list.prev->next = __p->_list.next;		\
 									\
-	if (_p->_list.next == NULL)					\
-		_p->_list.meta->tail = _p->_list.prev;			\
+	if (__p->_list.next == NULL)					\
+		__p->_list.meta->tail = __p->_list.prev;		\
 	else								\
-		_p->_list.next->prev = _p->_list.prev;			\
+		__p->_list.next->prev = __p->_list.prev;		\
 									\
-	if (_p->_list.meta->head != NULL)				\
-		head = (typeof (_p)) ((int8_t*)_p->_list.meta->head - _p->_list.meta->offset);	\
+	if (__p->_list.meta->head != NULL)				\
+		__head = (typeof (__p)) ((int8_t*)__p->_list.meta->head - __p->_list.meta->offset);	\
 									\
-	if (_p->_list.prev == NULL && _p->_list.next == NULL)		\
-		free(_p->_list.meta);					\
+	if (__p->_list.prev == NULL && __p->_list.next == NULL)		\
+		free(__p->_list.meta);					\
 									\
-	free(_p);							\
+	free(__p);							\
 									\
-	head;								\
+	__head;								\
 })
 
 #define list_get_prev(p)						\
 ({									\
-	typeof (p) ret = NULL, _p = xassert(p);				\
+	typeof (p) __ret = NULL, __p = xassert(p);			\
 									\
 									\
-	if (_p->_list.prev != NULL)					\
-		ret = (void*)((int8_t*)_p->_list.prev - _p->_list.meta->offset); \
+	if (__p->_list.prev != NULL)					\
+		__ret = (void*)((int8_t*)__p->_list.prev - __p->_list.meta->offset); \
 									\
-	ret;								\
+	__ret;								\
 })
 
 #define list_get_next(p)						\
 ({									\
-	typeof (p) ret = NULL, _p = xassert(p);				\
+	typeof (p) __ret = NULL, __p = xassert(p);			\
 									\
 									\
-	if (_p->_list.next != NULL)					\
-		ret = (void*)((int8_t*)_p->_list.next - _p->_list.meta->offset); \
+	if (__p->_list.next != NULL)					\
+		__ret = (void*)((int8_t*)__p->_list.next - __p->_list.meta->offset); \
 									\
-	ret;								\
+	__ret;								\
 })
 
 #define list_get_head(p)						\
 ({									\
-	typeof (p) ret = NULL, _p = xassert(p);				\
+	typeof (p) __ret = NULL, __p = xassert(p);			\
 									\
 									\
-	if (_p->_list.meta->head != NULL)				\
-		ret = (void*)((int8_t*)_p->_list.meta->head - _p->_list.meta->offset);	\
+	if (__p->_list.meta->head != NULL)				\
+		__ret = (void*)((int8_t*)__p->_list.meta->head - __p->_list.meta->offset);	\
 									\
-	ret;								\
+	__ret;								\
 })
 
 #define list_get_tail(p)						\
 ({									\
-	typeof (p) ret = NULL, _p = xassert(p);				\
+	typeof (p) __ret = NULL, __p = xassert(p);			\
 									\
 									\
-	if (_p->_list.meta->tail != NULL)				\
-		ret = (void*)((int8_t*)_p->_list.meta->tail - _p->_list.meta->offset);	\
+	if (__p->_list.meta->tail != NULL)				\
+		__ret = (void*)((int8_t*)__p->_list.meta->tail - __p->_list.meta->offset);	\
 									\
-	ret;								\
+	__ret;								\
 })
 
 #define list_foreach(head, entry) for (entry = head; entry != NULL; entry = list_get_next(entry))

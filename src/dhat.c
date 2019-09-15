@@ -5,40 +5,7 @@
 #include <wchar.h>
 
 #include "dhat.h"
-
-static void*
-xmalloc(size_t size)
-{
-	void *vp;
-
-	errno = 0;
-	vp = malloc(size);
-
-	if (size != 0 && vp == NULL) {
-		perror("markov");
-
-		exit(EXIT_FAILURE);
-	}
-
-	return vp;
-}
-
-static void*
-xrealloc(void *p, size_t size)
-{
-	void *vp;
-
-	errno = 0;
-	vp = realloc(p, size);
-
-	if (size != 0 && vp == NULL) {
-		perror("markov");
-
-		exit(EXIT_FAILURE);
-	}
-
-	return vp;
-}
+#include "macro.h"
 
 static struct entry*
 ealloc(void)
@@ -89,7 +56,7 @@ dhat_resize(dhat *ht)
 			newht = dhat_put(newht, head->key, head->value);
 	}
 
-	dhat_clear(ht);
+	dhat_free(ht);
 
 	return newht;
 }
@@ -106,7 +73,6 @@ dhat_new(unsigned int size, int depth, int factor)
 	ht->factor = factor;
 
 	size *= sizeof (struct entry*);
-
 	ht->entry = xmalloc(size);
 	memset(ht->entry, 0, size);
 
@@ -120,7 +86,7 @@ dhat_hashfunc(dhat *ht, unsigned int (*gethash)(const wchar_t *s, unsigned int s
 }
 
 dhat*
-dhat_put(dhat *ht, wchar_t *key, const void *value)
+dhat_put(dhat *ht, const wchar_t *key, const void *value)
 {
 	int i;
 	struct entry *head;
@@ -129,23 +95,23 @@ dhat_put(dhat *ht, wchar_t *key, const void *value)
 	hash = gethash(ht, key, ht->size);
 	head = ht->entry[hash];
 
-	for (i = 1;; head = head->next, ++i) {
+	for (i = 0;; head = head->next, ++i) {
 		if (head == NULL) {
 			head = ht->entry[hash] = ealloc();
-
+			++i;
 			break;
 		}
 		else if (wcscmp(head->key, key) == 0)
 			break;
 		else if (head->next == NULL) {
-			head = head->next = ealloc();
+			head->next = ealloc();
+			head = head->next;
 			++i;
-
 			break;
 		}
 	}
 
-	head->key = xrealloc(head->key, wcslen(key) + 1);
+	head->key = xrealloc(head->key, (wcslen(key) + 1) * sizeof (wchar_t));
 	wcscpy(head->key, key);
 	head->value = value;
 
@@ -156,7 +122,7 @@ dhat_put(dhat *ht, wchar_t *key, const void *value)
 }
 
 int
-dhat_get(dhat *ht, wchar_t *key, const void **value)
+dhat_get(dhat *ht, const wchar_t *key, const void **value)
 {
 	struct entry *head;
 
@@ -174,7 +140,7 @@ dhat_get(dhat *ht, wchar_t *key, const void **value)
 }
 
 void
-dhat_remove(dhat *ht, wchar_t *key)
+dhat_remove(dhat *ht, const wchar_t *key)
 {
 	unsigned int hash;
 	struct entry *head, **phead;
@@ -183,17 +149,27 @@ dhat_remove(dhat *ht, wchar_t *key)
 	head = ht->entry[hash];
 	phead = ht->entry + hash;
 
-	for (; head != NULL; phead = &head->next, head = head->next) {
+	if (head == NULL)
+		return;
+
+	while (1) {
 		if (wcscmp(key, head->key) == 0) {
 			*phead = head->next;
 			free(head->key);
 			free(head);
+			break;
 		}
+
+		if (head->next == NULL)
+			break;
+
+		phead = &head->next;
+		head = head->next;
 	}
 }
 
 void
-dhat_clear(dhat *ht)
+dhat_free(dhat *ht)
 {
 	int i;
 	struct entry *head, *next;
@@ -203,10 +179,10 @@ dhat_clear(dhat *ht)
 
 		for (; head != NULL; head = next) {
 			next = head->next;
-
 			dhat_remove(ht, head->key);
 		}
 	}
 
+	free(ht->entry);
 	free(ht);
 }

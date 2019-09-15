@@ -36,24 +36,29 @@ main(void)
 		    toks->type == BODY_BOX ||
 		    toks->type == VARIABLE_BOX) {
 			pos = stream_ofsttopos(toks->offset);
-			printf("%3d) at: %2d:%-2d  %s \n", i, pos.line, pos.ch, tok_idtostr(toks->type));
+			printf("%3d) at: %2d:%-2d  %s \n", i, pos.line, pos.ch,
+			    tok_idtostr(toks->type));
 		}
 		else if (toks->type == VARNAME ||
 			 toks->type == VARVALUE) {
 			pos = stream_ofsttopos(toks->offset);
-			printf("%3d) at: %2d:%-2d  %ls\n", i, pos.line, pos.ch, toks->value);
+			printf("%3d) at: %2d:%-2d  %ls\n", i, pos.line, pos.ch,
+			    (wchar_t*)toks->value);
 		}
 		else if (toks->type == TEXT) {
 			pos = stream_ofsttopos(toks->offset);
-			printf("%3d) at: %2d:%-2d  TEXT: '%ls'\n", i, pos.line, pos.ch, toks->value);
+			printf("%3d) at: %2d:%-2d  TEXT: '%ls'\n", i, pos.line,
+			    pos.ch, (wchar_t*)toks->value);
 		}
 		else if (toks->type == VARIABLE) {
 			pos = stream_ofsttopos(toks->offset);
-			printf("%3d) at: %2d:%-2d  VARIABLE: '%ls'\n", i, pos.line, pos.ch, toks->value);
+			printf("%3d) at: %2d:%-2d  VARIABLE: '%ls'\n", i,
+			    pos.line, pos.ch, (wchar_t*)toks->value);
 		}
 		else {
 			pos = stream_ofsttopos(toks->offset);
-			printf("%3d) at: %2d:%-2d  %c\n", i, pos.line, pos.ch, toks->type);
+			printf("%3d) at: %2d:%-2d  %c\n", i, pos.line, pos.ch,
+			    toks->type);
 		}
 	}
 #endif
@@ -121,7 +126,9 @@ main(void)
 	if (odt_write(doc, "file.odt") == -1)
 		printf("error: %s\n", odt_strerror(doc));
 
-	// list_free(head);
+	odt_free(doc);
+	dhat_free(vars);
+	tok_free(head);
 
 	return 0;
 }

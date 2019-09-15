@@ -180,6 +180,7 @@ create_styles(struct odt_doc *doc)
 
 	fd = open("/tmp", O_RDWR | O_TMPFILE, 0644);
 	mxmlSaveFd(xml, fd, whitespace_cb);
+	mxmlDelete(xml);
 
 	return fd;
 }
@@ -207,13 +208,14 @@ create_content(struct odt_doc *doc)
 		size = (wcslen(list->text) + 1) * MB_CUR_MAX;
 		str = xmalloc(size);
 		size = wcstombs(str, list->text, size);
-		str = xrealloc(str, size + 1);
-
 		mxmlNewText(node, 0, str);
+
+		free(str);
 	}
 
 	fd = open("/tmp", O_RDWR | O_TMPFILE, 0644);
 	mxmlSaveFd(xml, fd, whitespace_cb);
+	mxmlDelete(xml);
 
 	return fd;
 }
@@ -300,3 +302,18 @@ odt_strerror(struct odt_doc *doc)
 	return errmsg;
 }
 #undef MSGLEN
+
+void
+odt_free(struct odt_doc *doc)
+{
+	struct content_list *entry;
+
+
+	for (entry = doc->content->list; entry != NULL;)
+		entry = list_delete(entry);
+
+	free(doc->meta);
+	free(doc->styles);
+	free(doc->content);
+	free(doc);
+}

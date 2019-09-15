@@ -55,13 +55,14 @@ typedef struct variable {
 
 typedef struct token {
 	enum tok_types type;
-	wchar_t *value;
+	void *value;
 	long offset;
 
 	struct list_node _list;
 } token;
 
 token* parse_init(FILE *fp);
-void tok_free(token *tok);
+token* tok_add(enum tok_types type, void *val, long offset);
+void tok_free(token *head);
 
 #endif

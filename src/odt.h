@@ -16,5 +16,6 @@ void odt_set_text(odt_doc *doc, wchar_t *text);
 struct odt_doc *odt_new(void);
 int odt_write(struct odt_doc *doc, const char *path);
 const char *odt_strerror(struct odt_doc *doc);
+void odt_free(struct odt_doc *doc);
 
 #endif // _ODT_H
