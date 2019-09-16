@@ -7,8 +7,8 @@
 #include "stream.h"
 
 
-wchar_t *wcstring;
-unsigned long wcstringlen, offset;
+static wchar_t *wcstring;
+static unsigned long wcstringlen, offset;
 
 
 void
@@ -23,7 +23,7 @@ stream_wcback(int n)
 wchar_t
 stream_getprevwc()
 {
-	if (offset == 0)
+	if (offset < 2)
 		return WEOF;
 	else
 		return wcstring[offset - 2];
@@ -47,7 +47,8 @@ stream_skipsp()
 	while ((wc = stream_getwc()) != WEOF && iswspace(wc))
 		;
 
-	stream_wcback(1);
+	if (wc != WEOF)
+		stream_wcback(1);
 }
 
 void
@@ -131,4 +132,11 @@ stream_init(FILE *fp)
 
 	wcstringlen = i;
 	wcstring = xrealloc(wcstring, i * sizeof (wchar_t));
+}
+
+void
+stream_free(void)
+{
+	free(wcstring);
+	wcstring = NULL;
 }

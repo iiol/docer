@@ -1,18 +1,17 @@
-fsettings {
-toc = "true"
-creation_date = "22:10:58 27.10.1998"
-page_size = "21x19cm"
-}
+.toc("true")
+.creation_date("22:10:58 27.10.1998")
+.page_size("21", "29")
 
-include {
-file = "title.cfg"
-}
+.include("filename.txt")
 
-variable {
-hello = "Hello"
-world = "world"
-}
+.var("hello", "Hello")
+.var("world", "world")
 
-body {
-Hello World! $hello $world! \$notvar.
+.body {
+  .pp {
+    Hello World! \{$hello $world\}! \$notvar.
+  }
+  .pp {
+    New paragraph.
+  }
 }

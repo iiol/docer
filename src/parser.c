@@ -11,24 +11,8 @@
 
 token *tokhead;
 
-wchar_t *tok_types_wcs[] = {
-	L"settings",
-	L"include",
-	L"body",
-	L"variable",
-	NULL,
-};
 
-char *tok_types_str[] = {
-	"settings",
-	"include",
-	"body",
-	"variable",
-	NULL,
-};
-
-
-token*
+static token*
 tok_add(enum tok_types type, void *val, long offset)
 {
 	token *tok;
@@ -52,8 +36,7 @@ void
 tok_free(token *head)
 {
 	for (; head != NULL;) {
-		if (head->type == TEXT ||
-		    head->type == VARNAME)
+		if (head->type == TEXT)
 			free(head->value);
 		head = list_delete(head);
 	}
@@ -90,7 +73,7 @@ getvarname(FILE *fp)
 }
 
 static wchar_t*
-getvarval(FILE *fp)
+getstring(FILE *fp)
 {
 	int i, strlen;
 	long oldoffset;
@@ -136,139 +119,46 @@ getvarval(FILE *fp)
 	return str;
 }
 
-static enum tok_types
-getboxtype(FILE *fp)
-{
-	int i, j, capavailable;
-	long oldoffset;
-	wchar_t wc, **cap;
-	wchar_t *types[] = {
-		tok_idtowcs(SETTINGS_BOX),
-		tok_idtowcs(INCLUDE_BOX),
-		tok_idtowcs(BODY_BOX),
-		tok_idtowcs(VARIABLE_BOX),
-		L"",
-	};
-
-
-	cap = types;
-	oldoffset = stream_getofst();
-
-	for (i = 0; (wc = stream_getwc()) != WEOF; ++i) {
-		for (capavailable = j = 0;; ++j) {
-			if (cap[j] == NULL)
-				continue;
-			else if (cap[j][0] == '\0') {
-				if (capavailable == 0) {
-					stream_setofst(oldoffset);
-					return UNKNOWN;
-				}
-				break;
-			}
-
-			++capavailable;
-			if (cap[j][i] == '\0') {
-				if (iswalpha(wc))
-					cap[j] = NULL;
-				else {
-					stream_wcback(1);
-					return tok_wcstoid(cap[j]);
-				}
-			}
-			else if (cap[j][i] != wc)
-				cap[j] = NULL;
-		}
-	}
-
-	return UNKNOWN;
-}
-
-static void
-parse_vars(FILE *fp)
+void
+parse_arguments(FILE *fp)
 {
 	wchar_t wc, *wcs;
-	long offset;
+	unsigned long offset;
 
 
 	while (1) {
+		stream_skipsp();
 		offset = stream_getofst();
 		wc = stream_getwc();
 
-		if (iswalpha(wc) && stream_getprevwc() == '\n') {
+		if (wc == '"') {
 			stream_wcback(1);
-			wcs = getvarname(fp);
-
-			tok_add(VARNAME, wcs, offset);
-			stream_skipsp();
-
-			offset = stream_getofst();
-			wc = stream_getwc();
-
-			if (wc != '=') {
-				printf("error: expected '='\n");
-				stream_skipline();
-				stream_wcback(1);
-				continue;
-			}
-
-			tok_add('=', NULL, offset);
-			stream_skipsp();
-
-			offset = stream_getofst();
-			wc = stream_getwc();
-			stream_wcback(1);
-
-			if (wc != '"') {
-				printf("error: expected '\"'");
-				stream_skipline();
-				stream_wcback(1);
-
-				continue;
-			}
-
-			wcs = getvarval(fp);
-			if (wcs == NULL)
-				// TODO:
-				// error
-				// skipline ?
-				;
-
-			tok_add(VARVALUE, wcs, offset);
+			wcs = getstring(fp);
+			tok_add(STRING, wcs, offset);
 		}
-		else if (wc == '}' && stream_getprevwc() == '\n') {
-			wc = stream_getwc();
-
-			if (wc == '\n') {
-				tok_add('}', NULL, offset);
-
-				return;
-			}
-			else {
-				stream_wcback(2);
-			}
+		else if (wc == ',')
+			tok_add(',', NULL, offset);
+		else if (wc == ')') {
+			tok_add(')', NULL, offset);
+			return;
 		}
-		else if (iswspace(wc))
-			continue;
 		else if (wc == WEOF)
-			break;
-		else
-			// error
-			// skip line
-			;
+			return;
 	}
 }
 
-static void
-parse_body(FILE *fp)
+token*
+parse_init(FILE *fp)
 {
-	unsigned int i;
-	wchar_t wc;
-	long offset;
-	wchar_t *text, *varname;
-	unsigned int textlen;
+	unsigned long i, textlen, offset;
+	wchar_t wc, *wcs, *text;
+	int isfirstch;
 
+
+	stream_init(fp);
 
 	i = 0;
+	isfirstch = 1;
 	textlen = 1024;
 	text = xmalloc(textlen * sizeof (wchar_t));
 
@@ -276,7 +166,57 @@ parse_body(FILE *fp)
 		offset = stream_getofst();
 		wc = stream_getwc();
 
-		if (wc == '\\') {
+
+		if (wc == '.' && (iswspace(stream_getprevwc()) ||
+				  stream_getprevwc() == WEOF)) {
+			isfirstch = 0;
+			wcs = getvarname(fp);
+			tok_add(BOXNAME, wcs, offset);
+			stream_skipsp();
+		}
+		else if (wc == '\n') {
+			isfirstch = 1;
+
+			if (i == 0)
+				continue;
+
+			if (textlen <= i + 1) {
+				textlen *= 2;
+				text = xrealloc(text, textlen * sizeof (wchar_t));
+			}
+
+			text[i++] = ' ';
+		}
+		else if (iswspace(wc) && isfirstch)
+			;
+		else if (wc == '(' || wc == '{' || wc == '}' || wc == '$') {
+			isfirstch = 0;
+
+			if (i != 0) {
+				text[i++] = '\0';
+				text = xrealloc(text, i * sizeof (wchar_t));
+				tok_add(TEXT, text, offset - wcslen(text));
+
+				i = 0;
+				textlen = 1024;
+				text = xmalloc(textlen * sizeof (wchar_t));
+			}
+
+			if (wc == '(') {
+				tok_add('(', NULL, offset);
+				parse_arguments(fp);
+			}
+			else if (wc == '{')
+				tok_add('{', NULL, offset);
+			else if (wc == '}')
+				tok_add('}', NULL, offset);
+			else if (wc == '$') {
+				wcs = getvarname(fp);
+				tok_add(VARIABLE, wcs, offset);
+			}
+		}
+		else if (wc == '\\') {
+			isfirstch = 0;
 			wc = stream_getwc();
 
 			if (wc == WEOF)
@@ -290,41 +230,6 @@ parse_body(FILE *fp)
 
 			text[i++] = wc;
 		}
-		else if (wc == '}' && stream_getprevwc() == '\n') {
-			offset = stream_getofst() - 1;
-			wc = stream_getwc();
-
-			if (wc == '\n' || wc == WEOF) {
-				if (i != 0) {
-					i -= 1;
-					text[i++] = '\0';
-					text = xrealloc(text, i * sizeof (wchar_t));
-					tok_add(TEXT, text, offset - wcslen(text));
-				}
-				else
-					free(text);
-
-				tok_add('}', NULL, offset);
-
-				break;
-			}
-			else
-				stream_wcback(2);
-		}
-		else if (wc == '$') {
-			if (i != 0) {
-				text[i++] = '\0';
-				text = xrealloc(text, i * sizeof (wchar_t));
-				tok_add(TEXT, text, offset - wcslen(text));
-
-				i = 0;
-				textlen = 1024;
-				text = xmalloc(textlen * sizeof (wchar_t));
-			}
-
-			varname = getvarname(fp);
-			tok_add(VARIABLE, varname, offset);
-		}
 		else if (wc == WEOF) {
 			if (i != 0) {
 				text[i++] = '\0';
@@ -334,86 +239,17 @@ parse_body(FILE *fp)
 			else
 				free(text);
 
-			return;
+			return tokhead;
 		}
-		else { // if text
+		else {
+			isfirstch = 0;
+
 			if (textlen <= i + 1) {
 				textlen *= 2;
 				text = xrealloc(text, textlen * sizeof (wchar_t));
 			}
 
-			if (iswspace(wc))
-				wc = ' ';
-
 			text[i++] = wc;
-		}
-	}
-}
-
-token*
-parse_init(FILE *fp)
-{
-	wchar_t wc;
-	long offset;
-	token *tok;
-	enum tok_types toktype;
-
-
-	stream_init(fp);
-
-	while (1) {
-		stream_skipsp();
-		offset = stream_getofst();
-		toktype = getboxtype(fp);
-
-		if (toktype == SETTINGS_BOX ||
-			 toktype == INCLUDE_BOX  ||
-			 toktype == BODY_BOX ||
-			 toktype == VARIABLE_BOX)
-			tok_add(toktype, NULL, offset);
-		else {	// if toktype == UNKNOWN
-			offset = stream_getofst();
-			wc = stream_getwc();
-
-			if (wc == '{') {
-#if 1	// TODO:
-				wc = stream_getwc();
-				if (wc != '\n') {
-					// error
-					// skip
-					continue;
-				}
-#endif
-
-				tok = tok_add('{', NULL, offset);
-
-				switch (list_get_prev(tok)->type) {
-				case SETTINGS_BOX:
-				case INCLUDE_BOX:
-				case VARIABLE_BOX:
-					parse_vars(fp);
-					break;
-
-				case BODY_BOX:
-					parse_body(fp);
-					break;
-
-				default:
-					// error
-					// skip to "\n}\n"
-					list_delete(tok);
-
-					break;
-				}
-			}
-			else if (wc == WEOF)
-				break;
-			else {
-				// error
-				// just skip without stream_wcback()
-				// read token
-				// read word
-			}
 		}
 	}
 

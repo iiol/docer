@@ -8,6 +8,7 @@ typedef struct position {
 
 
 void stream_init(FILE *fp);
+void stream_free();
 
 void stream_wcback(int n);
 wchar_t stream_getprevwc();

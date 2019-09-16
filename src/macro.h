@@ -75,17 +75,17 @@ xrealloc(void *ptr, size_t size)
 	typeof (p) __p;							\
 									\
 									\
-	__p = malloc(sizeof (typeof (*__p)));				\
+	__p = xmalloc(sizeof (typeof (*__p)));				\
 	memset(&__p->_list, 0, sizeof (struct list_node));		\
 									\
-	__p->_list.meta = malloc(sizeof (struct list_meta));		\
+	__p->_list.meta = xmalloc(sizeof (struct list_meta));		\
 	__p->_list.meta->offset = offsetof(typeof (*__p), _list);	\
 	__p->_list.meta->head = &__p->_list;				\
 	__p->_list.meta->tail = &__p->_list;				\
 	__p->_list.prev = NULL;						\
 	__p->_list.next = NULL;						\
 									\
-	p = __p;								\
+	p = __p;							\
 })
 
 #define list_alloc_at_end(p)						\
@@ -93,7 +93,7 @@ xrealloc(void *ptr, size_t size)
 	typeof (p) __newp, __p = xassert(p);				\
 									\
 									\
-	__newp = malloc(sizeof (typeof (*__p)));			\
+	__newp = xmalloc(sizeof (typeof (*__p)));			\
 	__newp->_list.meta = __p->_list.meta;				\
 	__newp->_list.prev = __p->_list.meta->tail;			\
 	__newp->_list.next = NULL;					\
