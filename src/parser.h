@@ -1,35 +1,36 @@
 #ifndef _PARSER_H
 #define _PARSER_H
 
-#include "macro.h"
+#include "lexer.h"
 
-enum tok_types {
-	UNKNOWN	= 0x0,
-	END	= 0x0,
-	//
-	// 0x01 - 0xFF: one char tokens
-	//
-	BOXNAME	= 0x100,
-	//
-	TEXT,
-	STRING,
-	VARIABLE,
+enum cont_type {
+	TOK,
+	BOX,
 };
 
-typedef struct variable {
-	wchar_t *name;
-	wchar_t *val;
-} variable;
-
-typedef struct token {
-	enum tok_types type;
-	void *value;
-	long offset;
+struct box_args {
+	wchar_t *arg;
 
 	struct list_node _list;
-} token;
+};
 
-token* parse_init(FILE *fp);
-void tok_free(token *head);
+struct box {
+	wchar_t *name;
+	struct box_args *args;
+	struct box_content *cont;
+};
 
-#endif
+struct box_content {
+	enum cont_type type;
+
+	union {
+		token *tok;
+		struct box *box;
+	};
+
+	struct list_node _list;
+};
+
+struct box_content* parse_init(token **head);
+
+#endif // _PARSER_H
