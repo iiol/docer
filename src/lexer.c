@@ -12,7 +12,7 @@
 token *tokhead;
 
 
-static static token*
+static token*
 tok_add(enum tok_types type, void *val, long offset)
 {
 	token *tok;

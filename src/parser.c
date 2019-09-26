@@ -4,6 +4,53 @@
 #include "macro.h"
 
 
+static void
+parse_body(struct box_content **cont)
+{
+	struct box_content *entry;
+
+
+	list_foreach (*cont, entry) {
+		if (entry->type == BOX) {
+			if (wcscmp(entry->box->name, L"pp") == 0) {
+			}
+		}
+		else if (entry->type == TOK) {
+		}
+	}
+}
+
+void
+parse_generate(odt_doc *doc, struct box_content *cont)
+{
+	odt_tstyle style;
+	unsigned int def_style;
+
+
+	style.type = PARAGRAPH;
+	style.bgcolor = 0xFFFF00;
+	style.color = 0xFF0000;
+	def_style = odt_init_text_style(doc, &style);
+	odt_set_text(doc, L"Hello World", def_style);
+
+	style.type = PARAGRAPH;
+	style.bgcolor = 0xFF0000;
+	style.color = 0xFFFF00;
+	def_style = odt_init_text_style(doc, &style);
+	odt_set_text(doc, L"How are you?", def_style);
+
+	list_foreach (cont, cont) {
+		if (cont->type == BOX) {
+			if (wcscmp(cont->box->name, L"body") == 0)
+				parse_body(&cont);
+			else if (wcscmp(cont->box->name, L"var") == 0) {
+			}
+		}
+		else if (cont->type == TOK) {
+		}
+	}
+}
+
 static struct box_args*
 get_arguments(token **head)
 {
@@ -55,7 +102,6 @@ parse_init(token **head_tok)
 {
 	token *toks;
 	struct box_content *head_cont, *cont;
-	wchar_t *wcs;
 
 
 	head_cont = list_init(cont);

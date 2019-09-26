@@ -70,6 +70,8 @@ print_box_debug(struct box_content *cont)
 			print_indent(level);
 			printf("TOKEN\n");
 		}
+		else
+			printf("ERROR\n");
 	}
 
 	if (level != 0)
@@ -92,10 +94,12 @@ main(void)
 	doc = odt_new();
 
 #if 1	// DEBUG
-	print_tok_debug(toks);
+	print_tok_debug(head_toks);
 	putchar('\n');
 	print_box_debug(cont);
 #endif
+
+	parse_generate(doc, cont);
 
 	if (odt_write(doc, "file.odt") == -1)
 		printf("error: %s\n", odt_strerror(doc));

@@ -174,6 +174,18 @@ xrealloc(void *ptr, size_t size)
 	__ret;								\
 })
 
+#define list_find(p, var, val)						\
+({									\
+	typeof (p) __entry;						\
+									\
+									\
+	list_foreach (p, __entry)					\
+		if (__entry->var == (val))				\
+			break;						\
+									\
+	__entry;							\
+})
+
 #define list_foreach(head, entry) for (entry = head; entry != NULL; entry = list_get_next(entry))
 
 struct list_meta {
