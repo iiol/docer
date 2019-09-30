@@ -147,12 +147,14 @@ whitespace_cb(mxml_node_t *node, int where)
 	switch (where) {
 	case MXML_WS_BEFORE_OPEN:
 	case MXML_WS_BEFORE_CLOSE:
+#if 0
 		if (!strncmp(element, "?xml", strlen("?xml")))
 			return "";
 		else
 			return "\n";
 
 		break;
+#endif
 
 	case MXML_WS_AFTER_OPEN:
 	case MXML_WS_AFTER_CLOSE:

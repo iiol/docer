@@ -31,7 +31,7 @@ parse_generate(odt_doc *doc, struct box_content *cont)
 	style.bgcolor = 0xFFFF00;
 	style.color = 0xFF0000;
 	def_style = odt_init_text_style(doc, &style);
-	odt_set_text(doc, L"Hello World", def_style);
+	odt_set_text(doc, L"Hello World!", def_style);
 
 	style.type = PARAGRAPH;
 	style.bgcolor = 0xFF0000;
