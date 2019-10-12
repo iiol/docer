@@ -38,13 +38,13 @@ print_tok_debug(token *toks)
 			print_indent(j);
 
 		if (toks->type == BOXNAME)
-			printf(".%ls\n", (wchar_t*)toks->value);
+			printf(".%ls\n", toks->wcs);
 		else if (toks->type == STRING)
-			printf("\"%ls\"\n", (wchar_t*)toks->value);
+			printf("\"%ls\"\n", toks->wcs);
 		else if (toks->type == TEXT)
-			printf("TEXT: '%ls'\n", (wchar_t*)toks->value);
+			printf("TEXT: '%ls'\n", toks->wcs);
 		else if (toks->type == VARIABLE)
-			printf("VAR : '%ls'\n", (wchar_t*)toks->value);
+			printf("VAR : '%ls'\n", toks->wcs);
 		else
 			printf("%c\n", toks->type);
 	}
@@ -83,18 +83,18 @@ main(void)
 {
 	FILE *fp;
 	odt_doc *doc;
-	token *head_toks, *toks;
+	token *toks;
 	struct box_content *cont;
 
 
 	setlocale(LC_ALL, "");
 	fp = fopen("test.txt", "r");
-	head_toks = toks = lex_init(fp);
-	cont = parse_init(&toks);
+	toks = lex_init(fp);
+	cont = parse_init(toks);
 	doc = odt_new();
 
 #if 1	// DEBUG
-	print_tok_debug(head_toks);
+	print_tok_debug(toks);
 	putchar('\n');
 	print_box_debug(cont);
 #endif
@@ -105,7 +105,7 @@ main(void)
 		printf("error: %s\n", odt_strerror(doc));
 
 	odt_free(doc);
-	tok_free(head_toks);
+	tok_free(toks);
 	stream_free();
 
 	return 0;

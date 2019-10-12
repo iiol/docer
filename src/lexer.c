@@ -13,7 +13,7 @@ token *tokhead;
 
 
 static token*
-tok_add(enum tok_types type, void *val, long offset)
+tok_add(enum tok_types type, wchar_t *wcs, long offset)
 {
 	token *tok;
 
@@ -26,7 +26,7 @@ tok_add(enum tok_types type, void *val, long offset)
 		tok = list_alloc_at_end(tokhead);
 
 	tok->type = type;
-	tok->value = val;
+	tok->wcs = wcs;
 	tok->offset = offset;
 
 	return tok;
@@ -37,13 +37,13 @@ tok_free(token *head)
 {
 	for (; head != NULL;) {
 		if (head->type == TEXT)
-			free(head->value);
+			free(head->wcs);
 		head = list_delete(head);
 	}
 }
 
 static wchar_t*
-getvarname(FILE *fp)
+getvarname()
 {
 	int i, wordlen;
 	wchar_t wc, *word;
@@ -73,18 +73,12 @@ getvarname(FILE *fp)
 }
 
 static wchar_t*
-getstring(FILE *fp)
+getstring()
 {
 	int i, strlen;
 	long oldoffset;
 	wchar_t wc, *str;
 
-
-	if ((wc = stream_getwc()) != '"') {
-		stream_wcback(1);
-
-		return NULL;
-	}
 
 	strlen = 10;
 	str = xmalloc(strlen * sizeof (wchar_t));
@@ -120,7 +114,7 @@ getstring(FILE *fp)
 }
 
 static void
-lex_arguments(FILE *fp)
+lex_arguments()
 {
 	wchar_t wc, *wcs;
 	unsigned long offset;
@@ -132,8 +126,7 @@ lex_arguments(FILE *fp)
 		wc = stream_getwc();
 
 		if (wc == '"') {
-			stream_wcback(1);
-			wcs = getstring(fp);
+			wcs = getstring();
 			tok_add(STRING, wcs, offset);
 		}
 		else if (wc == ',')
@@ -205,6 +198,13 @@ lex_init(FILE *fp)
 			if (wc == '(') {
 				tok_add('(', NULL, offset);
 				lex_arguments(fp);
+				offset = stream_getofst();
+				stream_skipsp();
+
+				if (stream_getwc() == '{')
+					stream_wcback(1);
+				else
+					stream_setofst(offset);
 			}
 			else if (wc == '{')
 				tok_add('{', NULL, offset);

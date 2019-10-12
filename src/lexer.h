@@ -23,7 +23,7 @@ typedef struct variable {
 
 typedef struct token {
 	enum tok_types type;
-	void *value;
+	wchar_t *wcs;
 	long offset;
 
 	struct list_node _list;

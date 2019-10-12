@@ -7,11 +7,21 @@
 .var("hello", "Hello")
 .var("world", "world")
 
+.style("S1") {
+  .var("color",   "0xFFFF00")
+  .var("bgcolor", "0xFF0000")
+}
+
+.style("S2") {
+  .var("color",   "0xFF0000")
+  .var("bgcolor", "0xFFFF00")
+}
+
 .body {
-  .pp {
+  .pp("S1") {
     Hello World! \{$hello $world\}! \$notvar.
   }
-  .pp {
+  .pp("S1") {
     New paragraph.
   }
 }

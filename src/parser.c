@@ -5,18 +5,24 @@
 
 
 static void
-parse_body(struct box_content **cont)
+parse_body(struct box_content *cont)
 {
-	struct box_content *entry;
-
-
-	list_foreach (*cont, entry) {
-		if (entry->type == BOX) {
-			if (wcscmp(entry->box->name, L"pp") == 0) {
+	list_foreach (cont, cont) {
+		if (cont->type == BOX) {
+			if (wcscmp(cont->box->name, L"pp") == 0) {
 			}
 		}
-		else if (entry->type == TOK) {
+		else if (cont->type == TOK) {
 		}
+	}
+}
+
+static void
+parse_style(struct box_content *cont)
+{
+	list_foreach (cont, cont) {
+		if (cont->type == BOX && !wcscmp(cont->box->name, L"var"))
+			;
 	}
 }
 
@@ -42,9 +48,11 @@ parse_generate(odt_doc *doc, struct box_content *cont)
 	list_foreach (cont, cont) {
 		if (cont->type == BOX) {
 			if (wcscmp(cont->box->name, L"body") == 0)
-				parse_body(&cont);
-			else if (wcscmp(cont->box->name, L"var") == 0) {
-			}
+				parse_body(cont->box->cont);
+			else if (wcscmp(cont->box->name, L"var") == 0)
+				;
+			else if (wcscmp(cont->box->name, L"style") == 0)
+				parse_style(cont->box->cont);
 		}
 		else if (cont->type == TOK) {
 		}
@@ -71,15 +79,15 @@ get_arguments(token **head)
 			break;
 		else if (toks->type == STRING) {
 			if (wcs) {
-				size = (wcslen(wcs) + wcslen(toks->value) + 1) *
+				size = (wcslen(wcs) + wcslen(toks->wcs) + 1) *
 				    sizeof (wchar_t);
 				wcs = xrealloc(wcs, size);
-				wcscat(wcs, toks->value);
+				wcscat(wcs, toks->wcs);
 			}
 			else {
-				size = (wcslen(toks->value) + 1) * sizeof (wchar_t);
+				size = (wcslen(toks->wcs) + 1) * sizeof (wchar_t);
 				wcs = xmalloc(size);
-				wcscpy(wcs, toks->value);
+				wcscpy(wcs, toks->wcs);
 			}
 		}
 		else if (toks->type == ',') {
@@ -97,8 +105,8 @@ get_arguments(token **head)
 	return args;
 }
 
-struct box_content*
-parse_init(token **head_tok)
+static struct box_content*
+parse_box(token **head_tok)
 {
 	token *toks;
 	struct box_content *head_cont, *cont;
@@ -117,16 +125,20 @@ parse_init(token **head_tok)
 			cont->box->args = NULL;
 			cont->box->cont = NULL;
 
-			cont->box->name = toks->value;
+			cont->box->name = toks->wcs;
 			toks = list_get_next(toks);
 
-			if (toks->type == '(')
+			if (toks->type == '(') {
 				cont->box->args = get_arguments(&toks);
+				toks = list_get_next(toks);
+			}
 
 			if (toks->type == '{') {
 				toks = list_get_next(toks);
-				cont->box->cont = parse_init(&toks);
+				cont->box->cont = parse_box(&toks);
 			}
+			else
+				toks = list_get_prev(toks);
 
 			cont = list_alloc_at_end(cont);
 			cont->type = 0;
@@ -146,7 +158,7 @@ parse_init(token **head_tok)
 
 			cont->type = TOK;
 			tok->type = toks->type;
-			tok->value = toks->value;
+			tok->wcs = toks->wcs;
 			tok->offset = toks->offset;
 
 			cont = list_alloc_at_end(cont);
@@ -175,4 +187,10 @@ exit:
 	*head_tok = toks;
 
 	return head_cont;
+}
+
+struct box_content*
+parse_init(token *head)
+{
+	return parse_box(&head);
 }

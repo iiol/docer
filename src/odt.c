@@ -139,6 +139,9 @@ odt_init_text_style(odt_doc *doc, odt_tstyle *style)
 static const char*
 whitespace_cb(mxml_node_t *node, int where)
 {
+	return "";
+
+#if 0	// TODO: write
 	const char *element;
 
 
@@ -147,21 +150,18 @@ whitespace_cb(mxml_node_t *node, int where)
 	switch (where) {
 	case MXML_WS_BEFORE_OPEN:
 	case MXML_WS_BEFORE_CLOSE:
-#if 0
 		if (!strncmp(element, "?xml", strlen("?xml")))
 			return "";
 		else
 			return "\n";
 
 		break;
-#endif
 
 	case MXML_WS_AFTER_OPEN:
 	case MXML_WS_AFTER_CLOSE:
 		break;
 	}
-
-	return "";
+#endif
 }
 
 struct odt_doc*

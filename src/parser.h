@@ -32,7 +32,7 @@ struct box_content {
 	struct list_node _list;
 };
 
-struct box_content* parse_init(token **head);
+struct box_content* parse_init(token *head);
 void parse_generate(odt_doc *doc, struct box_content *cont);
 
 #endif // _PARSER_H
