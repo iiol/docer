@@ -6,6 +6,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stddef.h>
+#include <wchar.h>
 
 
 #define SYSCALL(estat, func, args...)					\

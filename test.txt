@@ -5,23 +5,23 @@
 .include("filename.txt")
 
 .var("hello", "Hello")
-.var("world", "world")
+.var("world", "world!!!")
 
 .style("S1") {
-  .var("color",   "0xFFFF00")
-  .var("bgcolor", "0xFF0000")
-}
-
-.style("S2") {
   .var("color",   "0xFF0000")
   .var("bgcolor", "0xFFFF00")
 }
 
+.style("S2") {
+  .var("color",   "0xFFFF00")
+  .var("bgcolor", "0xFF0000")
+}
+
 .body {
   .pp("S1") {
-    Hello World! \{$hello $world\}! \$notvar.
+    Hello World!.
   }
-  .pp("S1") {
-    New paragraph.
+  .pp("S2") {
+    New paragraph \{$hello $world\}! \$notvar.
   }
 }

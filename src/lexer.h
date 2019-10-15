@@ -16,11 +16,6 @@ enum tok_types {
 	VARIABLE,
 };
 
-typedef struct variable {
-	wchar_t *name;
-	wchar_t *val;
-} variable;
-
 typedef struct token {
 	enum tok_types type;
 	wchar_t *wcs;
